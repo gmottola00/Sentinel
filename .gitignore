@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Runtime artifacts
+/tmp/sentinel-watch/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

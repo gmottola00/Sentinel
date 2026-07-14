@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sentinel Watch</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<aside id="sidebar">
+  <div id="sidebar-header">
+    <h1>🛰 Sentinel Watch</h1>
+    <p>Satellite change detection with Sentinel-2 + Claude Vision</p>
+  </div>
+
+  <form id="analysis-form" onsubmit="return false;">
+    <div class="form-group">
+      <label for="area-name">Area Name</label>
+      <input type="text" id="area-name" placeholder="e.g. Amazon Basin – Sector 4" />
+    </div>
+
+    <div class="form-group">
+      <label>Bounding Box</label>
+      <span class="bbox-hint">Draw a rectangle on the map (hold Shift + drag)</span>
+      <div id="bbox-display">No area selected</div>
+    </div>
+
+    <div class="form-group">
+      <label for="date-before">Date Before</label>
+      <input type="date" id="date-before" />
+    </div>
+
+    <div class="form-group">
+      <label for="date-after">Date After</label>
+      <input type="date" id="date-after" />
+    </div>
+
+    <button type="button" id="analyze-btn" onclick="triggerAnalysis()">
+      Analyze Change
+    </button>
+  </form>
+
+  <div id="status-bar"></div>
+
+  <div id="alerts-panel">
+    <h2>Recent Alerts</h2>
+    <div id="alerts-list"></div>
+  </div>
+</aside>
+
+<!-- ── Map ── -->
+<div id="map">
+  <div class="draw-hint" id="draw-hint">
+    Hold <kbd>Shift</kbd> and drag to draw a bounding box
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
