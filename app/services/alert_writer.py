@@ -1,4 +1,5 @@
 """Write Claude's classification result as an alert to Postgres."""
+
 import json
 import logging
 from typing import Any
@@ -37,5 +38,7 @@ async def save_alert(
         raise RuntimeError("Failed to insert alert into Postgres")
 
     alert = dict(row)
-    logger.info(f"Alert saved: id={alert['id']} type={alert['change_type']} severity={alert['severity']}")
+    logger.info(
+        f"Alert saved: id={alert['id']} type={alert['change_type']} severity={alert['severity']}"
+    )
     return alert

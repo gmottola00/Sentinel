@@ -1,4 +1,4 @@
-.PHONY: install dev test lint format db-up db-down db-logs
+.PHONY: install dev test-download lint format health db-up db-down db-logs
 
 install:
 	uv sync

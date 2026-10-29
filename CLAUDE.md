@@ -52,17 +52,16 @@ after `POST /api/v1/analyses` returns 202):
 5. `raster.render_rgb_b64` / `render_diff_image_b64` — renders true-colour composites and a
    red/blue NDVI-diff colormap as base64 PNGs, capped to `MAX_IMAGE_SIZE` (1024px, a Claude Vision
    constraint).
-6. `ClaudeAnalyzer.analyze_change` — sends the 3 images to `claude-opus-4-6` with a tool-use loop
-   (`app/services/claude_analyzer.py`). Uses three tools as a structured-output pattern:
+6. `ClaudeAnalyzer.analyze_change` (`app/services/claude_analyzer.py`) — sends the 3 images to
+   `claude-opus-4-6` with a tool-use loop. It's synchronous (sync Anthropic client), so the
+   pipeline calls it via `asyncio.to_thread`. The three tools are a structured-output pattern:
    - `get_ndvi_stats` / `get_area_metadata` — data injection: Claude "calls" these and the app
      just returns pre-computed JSON already sitting in memory (not real external lookups).
    - `classify_change` — the only way Claude can submit its final answer; its `tool_use.input`
      is captured directly as the classification dict. Loop caps at 6 turns; if Claude never calls
      `classify_change`, a low-confidence fallback classification is used instead of failing.
-   - Note: `analyses.py` has its own near-duplicate copy of this tool-use loop
-     (`_run_claude_sync`), used because `ClaudeAnalyzer.analyze_change` is async but the pipeline
-     needs to run the Anthropic SDK call in a thread pool. Keep both in sync if you change the
-     prompt, tool schemas, or loop logic — or fix the duplication.
+   - `CHANGE_TYPES` / `SEVERITY_LEVELS` in `claude_analyzer.py` feed the `classify_change` enum
+     and must stay in sync with the `CHECK` constraints on `alerts` in `sql/schema.sql`.
 7. `alert_writer.save_alert` — inserts one row into `alerts`, including the full raw Claude
    response trace (`raw_claude_response`) for auditability.
 8. `analyses` row updated to `status=done` (or `status=error` with truncated `error_message` on
@@ -89,13 +88,20 @@ directly (no ORM/repository layer). Two things every query site has to handle ma
 so `/api/v1/*` takes precedence). Leaflet map lets a user draw a bbox, which becomes an `areas`
 row; `app.js` polls `GET /api/v1/analyses/{id}` for pipeline status.
 
-**Constraint**: `areas.max_bbox_degrees` (default 1.0°) caps bbox size at creation time — larger
-areas would span multiple Sentinel-2 tiles, unsupported in this MVP.
+**Constraint**: `Settings.max_bbox_degrees` (`app/config.py`, default 1.0°) caps bbox width/height,
+enforced in `areas.py::create_area` (HTTP 400) — larger areas would span multiple Sentinel-2
+tiles, unsupported in this MVP.
+
+**Security posture**: no auth on the API and CORS is `allow_origins=["*"]` — single-user MVP;
+any caller can trigger billable CDSE/Claude calls.
 
 ## Notes for changes here
 
-- Any new Claude tool-use logic needs to be added to both `claude_analyzer.py` and the duplicated
-  loop in `analyses.py::_run_claude_sync` (see above).
+- New Claude tools: add the schema to `TOOLS` and a handler branch in the loop in
+  `ClaudeAnalyzer.analyze_change` — all Claude logic lives in `claude_analyzer.py`.
+- `ruff` is a dev dependency (`uv sync` installs it); `make lint` is clean — keep it that way.
+- `CopernicusService.download_bands` downloads the **entire** product zip into memory and only then
+  extracts the 4 bands — there is no server-side band filtering.
 - `raster.py` functions assume `rasterio`-openable inputs and are synchronous by design — call
   them via `asyncio.to_thread`, don't make them `async def`.
 - Local Postgres runs via `docker-compose.yml` (single `db` service, named volume for data,

@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException
+
+from app.config import get_settings
 from app.models.area import Area, AreaCreate
 from app.services.db import get_pool, row_to_dict
-from app.config import get_settings
 
 router = APIRouter(prefix="/areas", tags=["areas"])
 
@@ -29,7 +30,11 @@ async def create_area(body: AreaCreate) -> Area:
         VALUES ($1, $2, $3, $4, $5)
         RETURNING *
         """,
-        body.name, body.min_lon, body.min_lat, body.max_lon, body.max_lat,
+        body.name,
+        body.min_lon,
+        body.min_lat,
+        body.max_lon,
+        body.max_lat,
     )
     return Area(**row_to_dict(row))
 

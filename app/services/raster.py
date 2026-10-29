@@ -2,11 +2,11 @@
 Raster processing: NDVI computation, difference maps, PNG rendering.
 All CPU-bound functions are intended to be called via asyncio.to_thread().
 """
+
 import base64
 import io
 import logging
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 from PIL import Image
@@ -30,7 +30,9 @@ def _crop_to_bbox(
 
     with rasterio.open(band_path) as src:
         # Transform bbox from WGS84 to the dataset's CRS (usually UTM)
-        bounds = transform_bounds("EPSG:4326", src.crs, min_lon, min_lat, max_lon, max_lat)
+        bounds = transform_bounds(
+            "EPSG:4326", src.crs, min_lon, min_lat, max_lon, max_lat
+        )
         window = from_bounds(*bounds, transform=src.transform)
         data = src.read(1, window=window).astype(np.float32)
 
@@ -157,7 +159,9 @@ def render_diff_image_b64(diff_array: np.ndarray) -> str:
     gain = np.where(valid & (diff_array > 0), diff_array, 0)
     loss = np.where(valid & (diff_array < 0), -diff_array, 0)
 
-    max_val = max(float(np.nanmax(np.abs(diff_array[valid]))) if valid.any() else 1.0, 0.01)
+    max_val = max(
+        float(np.nanmax(np.abs(diff_array[valid]))) if valid.any() else 1.0, 0.01
+    )
     gain_intensity = np.clip(gain / max_val * 255, 0, 255).astype(np.uint8)
     loss_intensity = np.clip(loss / max_val * 255, 0, 255).astype(np.uint8)
 
