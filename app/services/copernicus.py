@@ -2,15 +2,14 @@
 Copernicus Data Space Ecosystem (CDSE) service.
 Handles OAuth2 token caching, OData product search, and band download.
 """
+
 import asyncio
 import io
 import logging
-import os
 import time
 import zipfile
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Optional
 
 import httpx
 
@@ -18,9 +17,7 @@ from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-_CDSE_TOKEN_URL = (
-    "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
-)
+_CDSE_TOKEN_URL = "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
 _CDSE_ODATA_URL = "https://catalogue.dataspace.copernicus.eu/odata/v1"
 _CDSE_ZIPPER_URL = "https://zipper.dataspace.copernicus.eu/odata/v1"
 
@@ -30,7 +27,7 @@ BANDS_NEEDED = ["B04", "B08", "B02", "B03"]
 
 class _TokenCache:
     def __init__(self) -> None:
-        self._token: Optional[str] = None
+        self._token: str | None = None
         self._expires_at: float = 0.0
 
     def is_valid(self) -> bool:
@@ -42,7 +39,7 @@ class _TokenCache:
         self._expires_at = time.monotonic() + expires_in
 
     @property
-    def token(self) -> Optional[str]:
+    def token(self) -> str | None:
         return self._token
 
 
@@ -143,13 +140,8 @@ class CopernicusService:
         out_dir.mkdir(parents=True, exist_ok=True)
         token = await self._get_token()
 
-        # Build node filter to download only 10m band files (saves bandwidth vs full tile)
-        # CDSE zipper supports selecting specific nodes
-        node_filter = ",".join(
-            f"{product_name}.SAFE/GRANULE/*/IMG_DATA/R10m/*_{b}_10m.jp2"
-            for b in BANDS_NEEDED
-        )
-
+        # Downloads the full product zip (hundreds of MB) into memory; only BANDS_NEEDED are extracted
+        # afterwards in _extract_bands.
         url = f"{_CDSE_ZIPPER_URL}/Products({product_id})/$value"
 
         logger.info(f"Downloading bands for product {product_id}")
@@ -178,13 +170,12 @@ class CopernicusService:
             names = zf.namelist()
             for band in BANDS_NEEDED:
                 # Pattern: *_B04_10m.jp2 anywhere in the zip
-                matches = [
-                    n for n in names
-                    if f"_{band}_10m.jp2" in n and "R10m" in n
-                ]
+                matches = [n for n in names if f"_{band}_10m.jp2" in n and "R10m" in n]
                 if not matches:
                     # Fallback: any file with band name
-                    matches = [n for n in names if f"_{band}" in n and n.endswith(".jp2")]
+                    matches = [
+                        n for n in names if f"_{band}" in n and n.endswith(".jp2")
+                    ]
 
                 if not matches:
                     logger.warning(f"Band {band} not found in zip")

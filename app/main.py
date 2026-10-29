@@ -1,5 +1,4 @@
 import logging
-import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -7,9 +6,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from app.api.routes import alerts, analyses, areas
 from app.config import get_settings
-from app.services.db import init_pool, close_pool
-from app.api.routes import areas, analyses, alerts
+from app.services.db import close_pool, init_pool
 
 logging.basicConfig(
     level=logging.INFO,
@@ -56,4 +55,6 @@ async def health():
 # Serve frontend — mount last so API routes take precedence
 _frontend_dir = Path(__file__).parent.parent / "frontend"
 if _frontend_dir.exists():
-    app.mount("/", StaticFiles(directory=str(_frontend_dir), html=True), name="frontend")
+    app.mount(
+        "/", StaticFiles(directory=str(_frontend_dir), html=True), name="frontend"
+    )

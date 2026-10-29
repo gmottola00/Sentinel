@@ -1,6 +1,7 @@
 import json
 
 from fastapi import APIRouter, HTTPException, Query
+
 from app.models.alert import Alert
 from app.services.db import get_pool, row_to_dict
 
@@ -16,7 +17,8 @@ async def list_alerts(
     if area_id:
         rows = await pool.fetch(
             "SELECT * FROM alerts WHERE area_id = $1 ORDER BY created_at DESC LIMIT $2",
-            area_id, limit,
+            area_id,
+            limit,
         )
     else:
         rows = await pool.fetch(

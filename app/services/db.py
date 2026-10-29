@@ -1,4 +1,5 @@
 """Postgres connection pool (asyncpg)."""
+
 import uuid
 
 import asyncpg
@@ -29,4 +30,6 @@ def get_pool() -> asyncpg.Pool:
 
 def row_to_dict(row: asyncpg.Record) -> dict:
     """Convert an asyncpg Record to a dict, stringifying UUID columns (id fields are `str` in our Pydantic models)."""
-    return {k: (str(v) if isinstance(v, uuid.UUID) else v) for k, v in dict(row).items()}
+    return {
+        k: (str(v) if isinstance(v, uuid.UUID) else v) for k, v in dict(row).items()
+    }

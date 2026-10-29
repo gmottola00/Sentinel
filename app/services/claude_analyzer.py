@@ -6,9 +6,10 @@ Three tools:
   - get_area_metadata: returns area name + bbox
   - classify_change:   structured output trick — Claude calls this to emit its classification
 """
+
 import json
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import anthropic
 
@@ -109,7 +110,7 @@ class ClaudeAnalyzer:
     def __init__(self) -> None:
         self._client = anthropic.Anthropic(api_key=get_settings().anthropic_api_key)
 
-    async def analyze_change(
+    def analyze_change(
         self,
         rgb_before_b64: str,
         rgb_after_b64: str,
@@ -121,14 +122,17 @@ class ClaudeAnalyzer:
         """
         Run Claude Vision + tool use loop.
         Returns the structured classification dict + full raw response.
+        Blocking (sync Anthropic client) — call via asyncio.to_thread.
         """
         # Pre-build tool result data for injection
         _ndvi_stats_json = json.dumps(ndvi_stats)
-        _area_meta_json = json.dumps({
-            "name": area_name,
-            "bbox": bbox,
-            "description": f"Area '{area_name}' bounded by {bbox}",
-        })
+        _area_meta_json = json.dumps(
+            {
+                "name": area_name,
+                "bbox": bbox,
+                "description": f"Area '{area_name}' bounded by {bbox}",
+            }
+        )
 
         messages: list[dict] = [
             {
@@ -184,7 +188,7 @@ class ClaudeAnalyzer:
             }
         ]
 
-        classification: Optional[dict] = None
+        classification: dict | None = None
         raw_responses: list[dict] = []
 
         # Tool use loop (max 6 turns to avoid runaway)
@@ -197,10 +201,12 @@ class ClaudeAnalyzer:
                 messages=messages,
             )
 
-            raw_responses.append({
-                "stop_reason": response.stop_reason,
-                "content": [b.model_dump() for b in response.content],
-            })
+            raw_responses.append(
+                {
+                    "stop_reason": response.stop_reason,
+                    "content": [b.model_dump() for b in response.content],
+                }
+            )
 
             # Collect tool calls
             tool_calls = [b for b in response.content if b.type == "tool_use"]
@@ -213,23 +219,29 @@ class ClaudeAnalyzer:
             for tc in tool_calls:
                 if tc.name == "classify_change":
                     classification = tc.input  # type: ignore[assignment]
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": tc.id,
-                        "content": "Classification recorded. Thank you.",
-                    })
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": tc.id,
+                            "content": "Classification recorded. Thank you.",
+                        }
+                    )
                 elif tc.name == "get_ndvi_stats":
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": tc.id,
-                        "content": _ndvi_stats_json,
-                    })
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": tc.id,
+                            "content": _ndvi_stats_json,
+                        }
+                    )
                 elif tc.name == "get_area_metadata":
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": tc.id,
-                        "content": _area_meta_json,
-                    })
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": tc.id,
+                            "content": _area_meta_json,
+                        }
+                    )
 
             # Append assistant message and tool results
             messages.append({"role": "assistant", "content": response.content})
